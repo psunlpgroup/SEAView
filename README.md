@@ -28,11 +28,11 @@ After specifying the regular expressions, add EDUs and SCUs to the table by drag
 - *Left click* to drag into the table.
 #### To view the SCU-EDU Alignment:
 - Select File > SEA Annotation (or SEP Annotation) > Show SCU-EDU Alignment
-#### Table functions
+#### Table functions:
 - Sort: sort the table by the order in which the EDUs occurred in the text
 - Change label: change the label of an EDU/SCU
 - Remove: remove an EDU or SCU from the table, or remove a contributor from an EDU
-#### Pyramid functions
+#### Pyramid functions:
 - Show model essays: when creating an SEP annotation the model essays can be viewed
 - Expand/collapse the pyramid
 - Order by number of contributors or alphabetical order
