@@ -5,6 +5,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.ErrorHandler;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
@@ -20,6 +21,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.net.URLDecoder;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -68,15 +70,20 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
     private JMenuItem editRedoMenuItem;
     private JMenuItem documentStartRegexMenuItem;
     private JMenuItem summaryDividerRegexMenuItem;
-    protected ScuEduTextPane essayPane;
-    protected ScuEduTextPane modelEssaysPane;
+    private JMenuItem dndLeftClickMenuItem;
+    private JMenuItem dndRightClickMenuItem;
+    private JRadioButtonMenuItem setLabelOnInsertionMenuItem;
+    private JRadioButtonMenuItem setLabelAfterInsertionMenuItem;
+    protected SEAViewTextPane essayPane;
+    protected SEAViewTextPane modelEssaysPane;
     private JPanel mainPanel;
     private JPanel pyramidPanel;
     private JScrollPane pyramidScrollPane;
     protected SCUTree pyramidTree;
     protected SCUTree peerTree;
     protected SEATable table;
-    private String defaultFilePath = System.getProperty("user.dir");
+    private UndoController undoController = new UndoController();
+    private String defaultFilePath;
     private String crowdInputFile = null;
     private String peerInputFile = null;
     private String headerRegEx = null; // Regular expression that delimits model essays
@@ -90,24 +97,45 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         addWindowListener(new SEAViewWindowAdapter(this));
         setResizable(true);
 
+        String path = SEAView.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String decodedPath = null;
+        try {
+            decodedPath = URLDecoder.decode(path, "UTF-8");
+        }
+        catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        if (decodedPath != null) {
+            defaultFilePath = decodedPath;
+        }
+        else {
+            defaultFilePath = System.getProperty("user.dir");
+        }
+
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        } catch (IllegalAccessException | InstantiationException | UnsupportedLookAndFeelException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
         JPanel contentPane = (JPanel) getContentPane();
         contentPane.setLayout(new BorderLayout());
         this.currentTextSize = new JTextPane().getFont().getSize();
 
-        contentPane.registerKeyboardAction(this, "find", javax.swing.KeyStroke.getKeyStroke(70, 2), 2); // Ctrl + F shortcut
-        contentPane.registerKeyboardAction(this, "undo", javax.swing.KeyStroke.getKeyStroke(90, 2), 2); // Ctrl + Z shortcut
-        contentPane.registerKeyboardAction(this, "redo", javax.swing.KeyStroke.getKeyStroke(89, 2), 2); // Ctrl + Y shortcut
+        contentPane.registerKeyboardAction(this, "find", KeyStroke.getKeyStroke(70, InputEvent.CTRL_DOWN_MASK), 2); // Ctrl + F shortcut
+        contentPane.registerKeyboardAction(this, "undo", KeyStroke.getKeyStroke(90, InputEvent.CTRL_DOWN_MASK), 2); // Ctrl + Z shortcut
+        contentPane.registerKeyboardAction(this, "redo", KeyStroke.getKeyStroke(89, InputEvent.CTRL_DOWN_MASK), 2); // Ctrl + Y shortcut
 
         setJMenuBar(createMenuBar());
 
         this.mainPanel = new JPanel(new CardLayout());
 
-        this.essayPane = new ScuEduTextPane(this);
+        this.essayPane = new SEAViewTextPane(this);
         this.essayPane.setTransferHandler(new RemovalHandler());
 
         this.modelEssaysDialog = new JDialog(this, "Model Essays");
         //JPanel modelEssaysPanel = new JPanel();
-        this.modelEssaysPane = new ScuEduTextPane(this);
+        this.modelEssaysPane = new SEAViewTextPane(this);
         // modelEssaysPanel.add(new JScrollPane(this.modelEssaysPane));
         modelEssaysDialog.add(new JScrollPane(this.modelEssaysPane));
         this.modelEssaysDialog.pack();
@@ -286,7 +314,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
 
     public void actionPerformed(ActionEvent e) {
         if (e.getActionCommand().equals("fileNewCrowd")) {
-            if ((!this.isCrowdModified) || (saveModifiedCrowd())) {
+            if ((!this.isCrowdModified) || (saveModifiedCrowd()) && (!this.isPeerModified) || (saveModifiedPeer())) {
                 SEAViewFileChooser chooser = new SEAViewFileChooser(false, true, true);
                 chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
                 chooser.setDialogTitle("Choose the initial pyramid file");
@@ -294,9 +322,10 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
                     try {
                         this.crowdInputFile = chooser.getSelectedFile().getName();
 
+                        clearDocumentRegex();
+
                         loadEssay(chooser.getSelectedFile(), false, true);
                         loadPyramid(chooser.getSelectedFile(), false, essayPane);
-                        pyramidTree.order();
 
                         this.setTitle(titleString + " - SEA Annotation: " + chooser.getSelectedFile());
                         msg("Loaded file " + chooser.getSelectedFile());
@@ -312,12 +341,14 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             }
         }
         else if (e.getActionCommand().equals("fileLoadCrowd")) {
-            if ((!this.isCrowdModified) || (saveModifiedCrowd())) {
+            if ((!this.isCrowdModified) || (saveModifiedCrowd()) && (!this.isPeerModified) || (saveModifiedPeer())) {
                 SEAViewFileChooser chooser = new SEAViewFileChooser(false, true, false);
                 chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
                 chooser.setDialogTitle("Choose the SEA Annotation file");
                 if (chooser.showOpenDialog(this) == 0) {
                     try {
+                        clearDocumentRegex();
+
                         loadEssay(chooser.getSelectedFile(), false, true);
                         loadPyramid(chooser.getSelectedFile(), false, essayPane);
                         loadTable(chooser.getSelectedFile(), false, false);
@@ -383,32 +414,30 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             }
         }
         else if (e.getActionCommand().equals("fileNewPeer")) {
-            if ((!this.isPeerModified) || (saveModifiedPeer())) {
+            if ((!this.isPeerModified) || (saveModifiedPeer()) && (!this.isCrowdModified) || (saveModifiedCrowd())) {
                 SEAViewFileChooser chooser = new SEAViewFileChooser(false, false, true);
                 chooser.setDialogTitle("Choose the initial peer annotation file");
                 chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
                 if (chooser.showOpenDialog(this) == 0) {
                     try {
-                        this.peerInputFile = chooser.getSelectedFile().getName();
+                        clearDocumentRegex();
 
-                        modelEssaysPane.loadText(essayPane.getText());
-
-                        loadEssay(chooser.getSelectedFile(), true, false);
+                        setPeerLoaded(true);
+                        table.clear();
+                        loadEssay(chooser.getSelectedFile(), true, true);
+                        loadPyramid(chooser.getSelectedFile(), false, modelEssaysPane);
                         loadPyramid(chooser.getSelectedFile(), true, essayPane);
 
                         this.essayPane.setTree(this.peerTree);
 
-                        this.setTitle(titleString + " - SEA Peer Annotation: " + chooser.getSelectedFile());
+                        startDocumentIndexes = null;
+                        startBodyIndexes = null;
+                        //initializeStartDocumentIndexes(bodyRegEx, false);
+
+                        this.setTitle(titleString + " - SEP Annotation: " + chooser.getSelectedFile());
                         msg("Loaded file " + chooser.getSelectedFile());
                         this.defaultFilePath = chooser.getSelectedFile().getCanonicalPath();
                         this.peerFile = chooser.getSelectedFile();
-                        setPeerLoaded(true);
-
-                        startDocumentIndexes = null;
-                        startBodyIndexes = null;
-                        initializeStartDocumentIndexes(bodyRegEx, false);
-
-                        table.loadPeer();
                     } catch (IOException | SAXException | ParserConfigurationException ex) {
                         ex.printStackTrace();
                         msg(ex.getMessage());
@@ -423,8 +452,10 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
                 chooser.setDialogTitle("Choose the SEP Annotation file");
                 if (chooser.showOpenDialog(this) == 0) {
                     try {
+                        clearDocumentRegex();
+
                         setPeerLoaded(true);
-                        table.loadPeer();
+                        table.clear();
                         loadEssay(chooser.getSelectedFile(), true, true);
                         loadPyramid(chooser.getSelectedFile(), false, modelEssaysPane);
                         loadPyramid(chooser.getSelectedFile(), true, essayPane);
@@ -456,24 +487,13 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         }
         else if (e.getActionCommand().equals("fileClosePeer")) {
             if ((!this.isPeerModified) || (saveModifiedPeer())) {
-                this.essayPane.loadText(this.modelEssaysPane.getText());
-                this.essayPane.setCaretPosition(0);
-                initializeStartDocumentIndexes(headerRegEx, true);
-                initializeStartDocumentIndexes(bodyRegEx, false);
+                this.essayPane.loadText("");
                 this.modelEssaysPane.loadText("");
-
-                pyramidPanel.remove(pyramidScrollPane);
-                pyramidScrollPane = new JScrollPane(this.pyramidTree);
-                pyramidPanel.add(pyramidScrollPane);
-                pyramidPanel.revalidate();
-                pyramidPanel.repaint();
+                this.table.clear();
+                this.pyramidTree.reset();
                 this.peerTree.reset();
-                this.essayPane.setTree(this.pyramidTree);
-
-                table.closePeer();
-
                 setPeerLoaded(false);
-                this.setTitle(titleString + " - SEA Table from: " + this.defaultFilePath);
+                setTitle(titleString);
                 msg("Closed " + this.defaultFilePath);
             }
         }
@@ -487,7 +507,55 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
 
         }
         else if ((e.getActionCommand().equals("undo")) || (e.getActionCommand().equals("redo"))) {
+            //UndoController undoController;
+            /*DefaultTableModel tableModel;
+            SCUTree tree;
+            SEAViewTextPane textPane = this.essayPane;
+            UndoController undoController = this.undoController;
+            if (this.isPeerLoaded) {
+                tableModel = this.table.getPeerModel();
+                tree = this.peerTree;
 
+            } else {
+                tableModel = this.table.getTableModel();
+                tree = this.pyramidTree;
+            }
+            //javax.swing.tree.DefaultMutableTreeNode rootNode;
+            javax.swing.tree.DefaultMutableTreeNode rootNode;
+            if (e.getActionCommand().equals("undo")) {
+                rootNode = (javax.swing.tree.DefaultMutableTreeNode) undoController.undo();
+            } else {
+                rootNode = (javax.swing.tree.DefaultMutableTreeNode) undoController.redo();
+            }
+            tree.rebuildTree(rootNode);
+            textPane.loadText(textPane.getText());
+
+
+            java.util.Enumeration scuNodeEnum = tree.getRootNode().children();
+            while (scuNodeEnum.hasMoreElements()) {
+                javax.swing.tree.DefaultMutableTreeNode scuNode = (javax.swing.tree.DefaultMutableTreeNode) scuNodeEnum.nextElement();
+                java.util.Enumeration scuContributorNodeEnum = scuNode.children();
+
+                while (scuContributorNodeEnum.hasMoreElements()) {
+                    SCUContributor scuContributor = (SCUContributor) ((javax.swing.tree.DefaultMutableTreeNode) scuContributorNodeEnum.nextElement()).getUserObject();
+
+
+                    for (int i = 0; i < scuContributor.getNumParts(); i++) {
+                        SCUContributorPart scuContributorPart = scuContributor.getSCUContributorPart(i);
+                        textPane.modifyTextSelection(scuContributorPart.getStartIndex(), scuContributorPart.getEndIndex(), true);
+                    }
+                }
+            }
+
+            if (this.isPeerLoaded) {
+                this.isPeerModified = true;
+                this.fileSavePeerMenuItem.setEnabled(true);
+                this.fileSavePeerAsMenuItem.setEnabled(true);
+            } else {
+                this.isCrowdModified = true;
+                this.fileSaveCrowdMenuItem.setEnabled(true);
+                this.fileSaveCrowdAsMenuItem.setEnabled(true);
+            }*/
         }
         else if (e.getActionCommand().startsWith("Text Size")) {
             float fontSize = Float.parseFloat(e.getActionCommand().substring(10));
@@ -508,6 +576,12 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             SwingUtilities.updateComponentTreeUI(this);
             this.essayPane.updateSelectedStyle();
         }
+        else if (e.getActionCommand().startsWith("setLabel")) {
+            table.setLabelMode(e.getActionCommand().endsWith("Now"));
+        }
+        else if (e.getActionCommand().startsWith("drag")) {
+            essayPane.setRightClickMode(e.getActionCommand().endsWith("Right"));
+        }
         else if (e.getActionCommand().equals("headerRegex")) {
             String headerRegExTemp = this.headerRegEx;
 
@@ -519,8 +593,9 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
                     break;
                 }
             } while (!initializeStartDocumentIndexes(headerRegExTemp, true));
-
-            JOptionPane.showMessageDialog(this, "Your regular expression found " + this.startDocumentIndexes.length + " documents", "RegEx Result", JOptionPane.PLAIN_MESSAGE);
+            if (this.startDocumentIndexes != null) {
+                JOptionPane.showMessageDialog(this, "Your regular expression found " + this.startDocumentIndexes.length + " documents", "RegEx Result", JOptionPane.PLAIN_MESSAGE);
+            }
         }
         else if (e.getActionCommand().equals("summaryRegex")) {
             String bodyRegExTemp = this.bodyRegEx;
@@ -533,8 +608,9 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
                     break;
                 }
             } while (!initializeStartDocumentIndexes(bodyRegExTemp, false));
-
-            JOptionPane.showMessageDialog(this, "Your regular expression found " + this.startBodyIndexes.length + " summaries/bodies", "RegEx Result", JOptionPane.PLAIN_MESSAGE);
+            if (this.startBodyIndexes != null) {
+                JOptionPane.showMessageDialog(this, "Your regular expression found " + this.startBodyIndexes.length + " summaries/bodies", "RegEx Result", JOptionPane.PLAIN_MESSAGE);
+            }
         }
         else if (e.getActionCommand().equals("helpAbout")) {
             JTextArea help = new JTextArea(helpAbout);
@@ -599,13 +675,25 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
     }
 
     private Document makeDocument(File file) throws IOException, SAXException, ParserConfigurationException, FactoryConfigurationError {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        InputStream inputStream= new FileInputStream(file);
+        Reader reader = new InputStreamReader(inputStream,"UTF-8");
+        InputSource is = new InputSource(reader);
+        is.setEncoding("UTF-8");
+
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+        dbFactory.setValidating(true);
+        dbFactory.setIgnoringElementContentWhitespace(true);
+        dbFactory.setIgnoringComments(true);
+        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        dBuilder.setErrorHandler(this);
+        return dBuilder.parse(is);
+        /*DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setValidating(true);
         factory.setIgnoringElementContentWhitespace(true);
         factory.setIgnoringComments(true);
         DocumentBuilder documentBuilder = factory.newDocumentBuilder();
         documentBuilder.setErrorHandler(this);
-        return documentBuilder.parse(file);
+        return documentBuilder.parse(file);*/
     }
 
     /**
@@ -630,13 +718,10 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
     private boolean writeout(File file, boolean writePeer) {
         boolean success = true;
         try {
-            PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+            PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(file)), true);
 
             writer.println("<?xml version=\"1.0\"?>");
             writer.println("<!DOCTYPE " + (writePeer ? "SEP" : "SEA") + " [");
-            if (!writePeer) {
-                writer.println(" <!ELEMENT SEA (pyramid, seaAnnotation)>");
-            }
 
             writer.println(writePeer ? getPeerDTD() : getCrowdDTD());
             writer.println("]>");
@@ -651,10 +736,6 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
                 writer.println("<annotation>");
                 writer.println(getPyrXML(true));
                 writer.println("</annotation>");
-
-                writer.println("<seaAnnotation>");
-                writer.println(getSEAXML(false));
-                writer.println("</seaAnnotation>");
 
                 writer.println("<sepAnnotation>");
                 writer.println(getSEAXML(true));
@@ -699,7 +780,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
     private String getCrowdDTD() {
         StringBuffer buffer = new StringBuffer();
 
-        //buffer.append(" <!ELEMENT SEA (pyramid, seaAnnotation)>").append(eol);
+        buffer.append(" <!ELEMENT SEA (pyramid, seaAnnotation)>").append(eol);
 
         buffer.append(" <!ELEMENT pyramid (startDocumentRegEx?,text,scu*)>").append(eol);
         buffer.append(" <!ELEMENT startDocumentRegEx (#PCDATA)>").append(eol);
@@ -744,7 +825,23 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
     private String getPeerDTD() {
         StringBuffer buffer = new StringBuffer();
 
-        buffer.append(" <!ELEMENT SEP (pyramid, annotation, seaAnnotation, sepAnnotation)>").append(eol);
+        buffer.append(" <!ELEMENT SEP (pyramid, annotation, sepAnnotation)>").append(eol);
+
+        buffer.append(" <!ELEMENT pyramid (startDocumentRegEx?,text,scu*)>").append(eol);
+        buffer.append(" <!ELEMENT startDocumentRegEx (#PCDATA)>").append(eol);
+        buffer.append(" <!ELEMENT text (line*)>").append(eol);
+        buffer.append(" <!ELEMENT line (#PCDATA)>").append(eol);
+        buffer.append(" <!ELEMENT scu (contributor)+>").append(eol);
+        buffer.append(" <!ATTLIST scu uid CDATA #REQUIRED").append(eol);
+        buffer.append("               label CDATA #REQUIRED").append(eol);
+        buffer.append("               comment CDATA #IMPLIED>").append(eol);
+        buffer.append(" <!ELEMENT contributor (part)+>").append(eol);
+        buffer.append(" <!ATTLIST contributor label CDATA #REQUIRED").append(eol);
+        buffer.append("                       comment CDATA #IMPLIED>").append(eol);
+        buffer.append(" <!ELEMENT part EMPTY>").append(eol);
+        buffer.append(" <!ATTLIST part label CDATA #REQUIRED").append(eol);
+        buffer.append("                start CDATA #REQUIRED").append(eol);
+        buffer.append("                end   CDATA #REQUIRED>").append(eol);
 
         buffer.append(" <!ELEMENT annotation (text,peerscu+)>").append(eol);
         buffer.append(" <!ELEMENT peerscu (contributor)*>").append(eol);
@@ -752,7 +849,8 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         buffer.append("                   label CDATA #REQUIRED").append(eol);
         buffer.append("                   comment CDATA #IMPLIED>").append(eol);
 
-        buffer.append(" <!ELEMENT sepAnnotation (sepTable, sepAlignment)>").append(eol);
+        buffer.append(" <!ELEMENT sepAnnotation (startBodyRegEx, sepTable, sepAlignment)>").append(eol);
+        buffer.append(" <!ELEMENT startBodyRegEx (#PCDATA)>").append(eol);
         buffer.append(" <!ELEMENT sepTable (peereduscuPair)*>").append(eol);
         buffer.append(" <!ELEMENT peereduscuPair (peeredu, peerscu?)>").append(eol);
         buffer.append(" <!ELEMENT peeredu (contributor)+>").append(eol);
@@ -760,18 +858,21 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         buffer.append("                   label CDATA #REQUIRED").append(eol);
         buffer.append("                   comment CDATA #IMPLIED>").append(eol);
         buffer.append(" <!ELEMENT sepAlignment (alignment)*>").append(eol);
-
-        buffer.append(getCrowdDTD());
+        buffer.append(" <!ELEMENT alignment (scuId, scuWeight, eduId+, numEdus)>").append(eol);
+        buffer.append(" <!ELEMENT scuId (#PCDATA)>").append(eol);
+        buffer.append(" <!ELEMENT scuWeight (#PCDATA)>").append(eol);
+        buffer.append(" <!ELEMENT eduId (#PCDATA)>").append(eol);
+        buffer.append(" <!ELEMENT numEdus (#PCDATA)>").append(eol);
 
         return buffer.toString();
     }
 
     private String getSEAXML(boolean getPeer) {
         StringBuffer buffer = new StringBuffer();
-        DefaultTableModel model = getPeer ? table.getPeerModel() : table.getCrowdModel();
+        DefaultTableModel model = table.getTableModel();
         SCUTree tree = getPeer ? peerTree : pyramidTree;
 
-        if (!getPeer && this.bodyRegEx != null) {
+        if (this.bodyRegEx != null) {
             buffer.append("<startBodyRegEx><![CDATA[").append(this.bodyRegEx).append("]]></startBodyRegEx>").append(eol);
         }
 
@@ -785,7 +886,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         DefaultMutableTreeNode eduNode = eduTree.getRootNode().getNextNode();
 
         buffer.append(getPeer ? "<sepTable>" : "<seaTable essayNum=\"1\">").append(eol);
-        while (eduNode != null) {
+        while (eduNode != null && row < model.getRowCount() - 1) {
             if (!getPeer) {
                 essayNum = table.getEssayNumberofEdu(eduNode);
 
@@ -866,9 +967,13 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             }
             buffer.append("  </").append(getPeer ? "peer" : "").append("eduscuPair>").append(eol);
             row++;
-            eduTree = (SCUTree) model.getValueAt(row, 0);
-            if (eduTree != null) {
-                eduNode = eduTree.getRootNode().getNextNode();
+            if (row < model.getRowCount()) {
+                eduTree = (SCUTree) model.getValueAt(row, 0);
+                if (eduTree != null) {
+                    eduNode = eduTree.getRootNode().getNextNode();
+                } else {
+                    eduNode = null;
+                }
             }
             else {
                 eduNode = null;
@@ -917,7 +1022,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
 
     private String getPyrXML(boolean getPeer) {
         StringBuffer buffer = new StringBuffer();
-        ScuEduTextPane textPane;
+        SEAViewTextPane textPane;
         SCUTree tree;
 
         if (isPeerLoaded) {
@@ -993,53 +1098,11 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         return buffer.toString();
     }
 
-    /**
-     * This function generates XML containing the following fields, as specified in XMLScoreTags and optionalXMLScoreTags:
-     *
-     * XMLScoreTags: always present
-     *
-     * "totalscu": the total number of SCUs found in the peer summary
-     * "uniquescu": the number of unique SCUs from the pyramid that were found in the peer summary
-     * "scusNotInPyr": the number of SCUs from the pyramid that were not found in the peer summary
-     * "totalWeight": the total weight of SCUs found in the peer summary
-     * "maxScoreTotalscu": the max possible score given the total weight and number of SCUs in the peer summary
-     * "qualityScore": score representing the quality of the SCUs in the peer summary
-     *
-     * optionalXMLScoreTags: present in the score when the RegEx delimiting model summaries is specified
-     *
-     * "averagescu": the average number of SCUs in the model summaries
-     * "maxScoreAveragescu": the max possible score given the total weight and average number of SCUs in the model summaries
-     * "coverageScore": score representing the coverage of the SCUs in the peer summary
-     * "comprehensiveScore": the harmonic mean of the quality score and the coverage score
-     *
-     * Regex is used to match only strings inside <b></b> HTML tags, since the getScore function formats the
-     * score in an HTML table with the above score elements between the <b></b> tags.
-     *
-     * @return String containing XML of peer score
-     */
-    private String getScoreXML() {
-        StringBuffer buffer = new StringBuffer();
-        /*Pattern pattern = Pattern.compile("<b>\\s*(.*)</b>");
-        Matcher matcher = pattern.matcher(getScore());
-        for (String tag : XMLScoreTags) {
-            if (matcher.find()) {
-                buffer.append(" <" + tag + ">" + matcher.group(1) + "</" + tag + ">").append(eol);
-            }
-        }
-        for (String tag : optionalXMLScoreTags) {
-            if (matcher.find()) {
-                buffer.append(" <" + tag + ">" + matcher.group(1) + "</" + tag + ">").append(eol);
-            }
-        }
-        buffer.setLength(buffer.length() - 1);*/
-        return buffer.toString();
-    }
-
     protected void setCrowdModified(boolean isModified) {
         this.isCrowdModified = isModified;
         this.fileSaveCrowdMenuItem.setEnabled(isModified);
         this.fileSaveCrowdAsMenuItem.setEnabled(isModified);
-        //this.pyramidUndoController.add(deepCopy(this.pyramidTree.getRootNode()));
+        //this.undoController.add(deepCopy(this.table.getTableModel()));
     }
 
     protected void setPeerModified(boolean isModified) {
@@ -1053,12 +1116,9 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         this.isCrowdLoaded = isLoaded;
         this.fileCloseCrowdMenuItem.setEnabled(isLoaded);
         this.fileShowSCUEDUAlignmentMenuItem.setEnabled(isLoaded);
-        this.fileNewPeerMenuItem.setEnabled(isLoaded);
         this.documentStartRegexMenuItem.setEnabled(isLoaded);
         this.summaryDividerRegexMenuItem.setEnabled(isLoaded);
         this.sortTableBtn.setEnabled(isLoaded);
-        this.changeLabelBtn.setEnabled(false);
-        this.removeBtn.setEnabled(false);
         this.expandCollapseBtn.setEnabled(isLoaded);
         this.orderByWeightBtn.setEnabled(isLoaded);
         this.orderAlphabeticallyBtn.setEnabled(isLoaded);
@@ -1067,53 +1127,43 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
 
         if (!isLoaded) {
             setCrowdModified(false);
+            this.changeLabelBtn.setEnabled(false);
+            this.removeBtn.setEnabled(false);
         }
-
-
-        /*if (isLoaded) {
+        /*
+        if (isLoaded) {
             //showCard("pyramid");
-            this.pyramidUndoController.setActive(true);
-            this.peerUndoController.setActive(false);
-            this.pyramidUndoController.clear();
-            this.pyramidUndoController.add(deepCopy(this.pyramidTree.getRootNode()));
+            //this.undoController.setActive(true);
+            //this.undoController.setActive(false);
+            //this.undoController.clear();
+            //this.undoController.add(deepCopy(this.table));
+            //this.undoController.add(deepCopy(this.table.getTableModel().getValueAt(0, 1)));
         } else {
-            this.pyramidUndoController.clear();
-            this.pyramidUndoController.setActive(false);
+            //this.undoController.clear();
+            //this.undoController.setActive(false);
             setCrowdModified(false);
-            this.orderByWeightBtn.setEnabled(false);
-            this.collapseBtn.setEnabled(false);
+            //this.orderByWeightBtn.setEnabled(false);
+            //this.collapseBtn.setEnabled(false);
         }*/
     }
 
     private void setPeerLoaded(boolean isLoaded) {
         this.isPeerLoaded = isLoaded;
-
-        this.fileNewCrowdMenuItem.setEnabled(!isLoaded);
-        this.fileLoadCrowdMenuItem.setEnabled(!isLoaded);
-        this.fileCloseCrowdMenuItem.setEnabled(!isLoaded);
-        this.fileShowPeerSCUEDUAlignmentMenuItem.setEnabled(isLoaded);
-        this.fileNewPeerMenuItem.setEnabled(!isLoaded);
-        //this.fileSavePeerMenuItem.setEnabled(isLoaded);
-        //this.fileSavePeerAsMenuItem.setEnabled(isLoaded);
         this.fileClosePeerMenuItem.setEnabled(isLoaded);
-        //this.dragScuMoveMenuItem.setEnabled((!isLoaded) && (this.isPyramidLoaded));
-        //this.dragScuMergeMenuItem.setEnabled((!isLoaded) && (this.isPyramidLoaded));
-        this.documentStartRegexMenuItem.setEnabled((!isLoaded) && (this.isCrowdLoaded));
-        this.summaryDividerRegexMenuItem.setEnabled((!isLoaded) && (this.isCrowdLoaded));
-
-        this.fileShowSCUEDUAlignmentMenuItem.setEnabled(!isLoaded);
-        this.documentStartRegexMenuItem.setEnabled(!isLoaded);
-        this.summaryDividerRegexMenuItem.setEnabled(!isLoaded);
-        this.sortTableBtn.setEnabled(true);
-        this.changeLabelBtn.setEnabled(false);
-        this.removeBtn.setEnabled(false);
-        this.expandCollapseBtn.setEnabled(true);
-        this.orderByWeightBtn.setEnabled(true);
-        this.orderAlphabeticallyBtn.setEnabled(true);
+        this.fileShowPeerSCUEDUAlignmentMenuItem.setEnabled(isLoaded);
+        this.summaryDividerRegexMenuItem.setEnabled(isLoaded);
+        this.sortTableBtn.setEnabled(isLoaded);
+        this.expandCollapseBtn.setEnabled(isLoaded);
+        this.orderByWeightBtn.setEnabled(isLoaded);
+        this.orderAlphabeticallyBtn.setEnabled(isLoaded);
         this.showModelEssaysBtn.setEnabled(isLoaded);
+
+        this.table.setPeer(isLoaded);
 
         if (!isLoaded) {
             setPeerModified(false);
+            this.changeLabelBtn.setEnabled(false);
+            this.removeBtn.setEnabled(false);
         }
 
         //this.pyramidTree.setSCUTextPane(this.essayPane);
@@ -1248,7 +1298,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         }
     }
 
-    private void loadPyramid(File file, boolean isPeer, ScuEduTextPane pane) throws ParserConfigurationException, SAXException, IOException {
+    private void loadPyramid(File file, boolean isPeer, SEAViewTextPane pane) throws ParserConfigurationException, SAXException, IOException {
         Document doc = makeDocument(file);
         Element top = (Element) doc.getElementsByTagName((isPeer ? "annotation" : "pyramid")).item(0);
 
@@ -1257,7 +1307,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
 
         for (int scuCnt = 0; scuCnt < scuNodeList.getLength(); scuCnt++) {
             Element scuElement = (Element) scuNodeList.item(scuCnt);
-            DefaultMutableTreeNode scuNode = getSCUNodeFromXML(scuElement, false, pane);
+            DefaultMutableTreeNode scuNode = getSCUNodeFromXML(scuElement, false, pane, scuCnt + 1, isPeer);
             SCU scu = (SCU) scuNode.getUserObject();
             scu.isPeer(isPeer);
             rootNode.add(scuNode);
@@ -1286,7 +1336,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         Element top = (Element) doc.getElementsByTagName((isPeer ? "sepAnnotation" : "seaAnnotation")).item(0);
         NodeList tableList = top.getElementsByTagName(isPeer ? "sepTable" : "seaTable");
 
-        DefaultTableModel model = isPeer ? table.getPeerModel() : table.getCrowdModel();
+        DefaultTableModel model = table.getTableModel();
 
         int row = 0;
         for (int tableCnt = 0; tableCnt < tableList.getLength(); tableCnt++) {
@@ -1295,20 +1345,20 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             for (int pair = 0; pair < eduscuPairsList.getLength(); pair++) {
                 NodeList eduScu = eduscuPairsList.item(pair).getChildNodes();
                 Element edu = (Element) eduScu.item(0);
-                ScuEduTextPane textPane;
+                SEAViewTextPane textPane;
                 if (!isPeer && loadCrowdForSEP) {
                     textPane = modelEssaysPane;
                 }
                 else {
                     textPane = essayPane;
                 }
-                DefaultMutableTreeNode eduNode = getSCUNodeFromXML(edu, true, textPane);
-                table.insertEDUTree(eduNode, row, isPeer);
+                DefaultMutableTreeNode eduNode = getSCUNodeFromXML(edu, true, textPane, 0, isPeer);
+                table.insertEDUTree(eduNode, row, loadCrowdForSEP);
 
                 // Get SCU from pair
                 Element scu = (Element) eduScu.item(1);
                 if (scu != null) {
-                    DefaultMutableTreeNode scuNode = getSCUNodeFromXML(scu, false, textPane);
+                    DefaultMutableTreeNode scuNode = getSCUNodeFromXML(scu, false, textPane, 0, isPeer);
                     SCU scuObject = (SCU) scuNode.getUserObject();
                     scuObject.isPeer(isPeer);
                     model.setValueAt(scuNode, row, 1);
@@ -1317,11 +1367,11 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
 
             }
         }
+        table.updateSCUIndices();
         table.orderEDUs(false, isPeer);
-        if (isPeer) loadTable(file, false, true); // Load the crowd model too
     }
 
-    private DefaultMutableTreeNode getSCUNodeFromXML(Element scuElement, boolean isEdu, ScuEduTextPane textPane) {
+    private DefaultMutableTreeNode getSCUNodeFromXML(Element scuElement, boolean isEdu, SEAViewTextPane textPane, int nextAvailableTempId, boolean isPeer) {
         String scuLabel = scuElement.getAttribute("label");
         String scuComment = scuElement.getAttribute("comment");
         NodeList scuContributorNodeList = scuElement.getElementsByTagName("contributor");
@@ -1334,7 +1384,18 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         }
         else {
             int id = Integer.parseInt(scuElement.getAttribute("uid"));
-            scuNode = new DefaultMutableTreeNode(new SCU(id, scuLabel, scuComment, id, scuContributorNodeList.getLength()));
+            int weight = scuContributorNodeList.getLength();
+            if (isPeer) {
+                Matcher m = Pattern.compile("\\(([^)]+)\\)").matcher(scuLabel);
+                if (m.find()) {
+                    weight = Integer.parseInt(m.group(1));
+                }
+            }
+            scuNode = new DefaultMutableTreeNode(new SCU(id, scuLabel, scuComment, id, weight));
+            if (nextAvailableTempId > 0) {
+                // Temp ID has been specified
+                ((SCU) scuNode.getUserObject()).setScuTempId(nextAvailableTempId);
+            }
         }
 
         for (int scuContributorCnt = 0;
@@ -1443,7 +1504,6 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         this.fileNewPeerMenuItem.setMnemonic('n');
         this.fileNewPeerMenuItem.setActionCommand("fileNewPeer");
         this.fileNewPeerMenuItem.addActionListener(this);
-        this.fileNewPeerMenuItem.setEnabled(false);
         peerMenu.add(this.fileNewPeerMenuItem);
 
         this.fileLoadPeerMenuItem = new JMenuItem("Load...");
@@ -1557,7 +1617,53 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             lookAndFeelSubmenu.add(lookAndFeelMenuItem);
         }
 
-        optionsMenu.add(lookAndFeelSubmenu);
+        //optionsMenu.add(lookAndFeelSubmenu);
+
+        JMenu setLabelMenu = new JMenu("Set Label Mode");
+        setLabelMenu.setMnemonic('d');
+
+        ButtonGroup setLabelGroup = new ButtonGroup();
+
+        this.setLabelOnInsertionMenuItem = new javax.swing.JRadioButtonMenuItem("Set labels immediately when inserting EDUs");
+        this.setLabelOnInsertionMenuItem.setMnemonic('i');
+        this.setLabelOnInsertionMenuItem.setActionCommand("setLabelNow");
+        this.setLabelOnInsertionMenuItem.addActionListener(this);
+        this.setLabelOnInsertionMenuItem.setSelected(true);
+        //this.setLabelOnInsertionMenuItem.setEnabled(false);
+        setLabelGroup.add(this.setLabelOnInsertionMenuItem);
+        setLabelMenu.add(this.setLabelOnInsertionMenuItem);
+
+        this.setLabelAfterInsertionMenuItem = new javax.swing.JRadioButtonMenuItem("Set labels later using button");
+        this.setLabelAfterInsertionMenuItem.setMnemonic('a');
+        this.setLabelAfterInsertionMenuItem.setActionCommand("setLabelLater");
+        this.setLabelAfterInsertionMenuItem.addActionListener(this);
+        //this.setLabelAfterInsertionMenuItem.setEnabled(false);
+        setLabelGroup.add(this.setLabelAfterInsertionMenuItem);
+        setLabelMenu.add(this.setLabelAfterInsertionMenuItem);
+
+        optionsMenu.add(setLabelMenu);
+
+        JMenu setdndClickModeMenu = new JMenu("Set DND Mode");
+        setLabelMenu.setMnemonic('n');
+
+        ButtonGroup setdndClickGroup = new ButtonGroup();
+
+        this.dndLeftClickMenuItem = new javax.swing.JRadioButtonMenuItem("Drag and drop text using left click");
+        this.dndLeftClickMenuItem.setMnemonic('l');
+        this.dndLeftClickMenuItem.setActionCommand("dragLeft");
+        this.dndLeftClickMenuItem.addActionListener(this);
+        this.dndLeftClickMenuItem.setSelected(true);
+        setdndClickGroup.add(this.dndLeftClickMenuItem);
+        setdndClickModeMenu.add(this.dndLeftClickMenuItem);
+
+        this.dndRightClickMenuItem = new javax.swing.JRadioButtonMenuItem("Drag and drop text using right click");
+        this.dndRightClickMenuItem.setMnemonic('r');
+        this.dndRightClickMenuItem.setActionCommand("dragRight");
+        this.dndRightClickMenuItem.addActionListener(this);
+        setdndClickGroup.add(this.dndRightClickMenuItem);
+        setdndClickModeMenu.add(this.dndRightClickMenuItem);
+
+        optionsMenu.add(setdndClickModeMenu);
 
         JMenu regexSubMenu = new JMenu("Set RegEx");
         regexSubMenu.setMnemonic('r');
@@ -1707,6 +1813,13 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         return true;
     }
 
+    private void clearDocumentRegex() {
+        headerRegEx = null;
+        bodyRegEx = null;
+        startDocumentIndexes = null;
+        startBodyIndexes = null;
+    }
+
     public int[] getStartDocumentIndexes() {
         return startDocumentIndexes;
     }
@@ -1748,6 +1861,10 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
             this.isSavingFile = isSavingFile;
             this.isCrowd = isCrowd;
             this.isNew = isNew;
+
+            File f = new File(defaultFilePath);
+            setCurrentDirectory(f);
+
 
             String defaultName = isCrowd ? SEAView.this.crowdInputFile : SEAView.this.peerInputFile;
             if ((defaultName == null) || (defaultName.trim().length() == 0))
@@ -1813,6 +1930,100 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
         @Override
         public boolean canImport(TransferSupport support) {
             return false;
+        }
+    }
+
+    private static Object deepCopy(Object orig) {
+        Object obj = null;
+
+        try {
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bos);
+            out.writeObject(orig);
+            out.flush();
+            out.close();
+
+
+            java.io.ObjectInputStream in = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bos.toByteArray()));
+
+            obj = in.readObject();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return obj;
+    }
+
+    private class UndoController {
+
+        private java.util.Vector states = new java.util.Vector();
+
+        private boolean isUndoEnabled = false;
+        private boolean isRedoEnabled = false;
+        private boolean isActive = false;
+
+        private int undoIndex = -1;
+
+        private void expressGUI() {
+            if (this.isActive) {
+                SEAView.this.editUndoMenuItem.setEnabled(this.isUndoEnabled);
+                SEAView.this.editRedoMenuItem.setEnabled(this.isRedoEnabled);
+            }
+        }
+
+
+        public void setActive(boolean isActive) {
+            this.isActive = isActive;
+            expressGUI();
+        }
+
+        public void clear() {
+            this.states.clear();
+            this.undoIndex = -1;
+            this.isUndoEnabled = (this.isRedoEnabled = false);
+            expressGUI();
+        }
+
+        public void add(Object state) {
+            this.undoIndex += 1;
+            if (this.undoIndex < this.states.size())
+                this.states.setSize(this.undoIndex);
+            this.states.add(state);
+            this.isUndoEnabled = (this.undoIndex > 0);
+            this.isRedoEnabled = false;
+            expressGUI();
+        }
+
+
+        public Object undo() {
+            if (this.isUndoEnabled) {
+                this.undoIndex -= 1;
+                this.isUndoEnabled = (this.undoIndex > 0);
+                this.isRedoEnabled = true;
+                expressGUI();
+
+                return SEAView.deepCopy(this.states.get(this.undoIndex));
+            }
+
+
+            return null;
+        }
+
+
+        public Object redo() {
+            if (this.isRedoEnabled) {
+                this.undoIndex += 1;
+                this.isUndoEnabled = true;
+                this.isRedoEnabled = (this.states.size() > this.undoIndex + 1);
+                expressGUI();
+
+                return SEAView.deepCopy(this.states.get(this.undoIndex));
+            }
+
+
+            return null;
+        }
+
+        private UndoController() {
         }
     }
 }
