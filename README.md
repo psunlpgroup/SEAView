@@ -37,6 +37,7 @@ After specifying the regular expressions, add EDUs and SCUs to the table by drag
 - Expand/collapse the pyramid
 - Order by number of contributors or alphabetical order
 
+Finally, Step 4 is completed using a .pan file from DUCView, and is performed analogously to Step 3 for the peer EDUs.
 
 ## Class documentation
 This section contains an overview of the most important classes in the project and their functions. <br />
@@ -58,7 +59,7 @@ This section contains an overview of the most important classes in the project a
 #### SCUContributorPart
 - Defines a part of an SCU/EDU contributor
 - Includes the starting and ending indices of the SCU/EDU contributor in the essay, as well as the text
-#### SCUTextPane
+#### SEAViewTextPane
 - Defines the left pane of SEAView, containing the essay text
 - Includes functions for displaying, highlighting, and selecting text
 #### SCUTree
