@@ -69,15 +69,16 @@ To perform either step 3 or 4 in the workflow described above, there are two mai
 To perform step 1, EDUs must be segmented from full sentences. Definitions of EDUs vary, but simply put, an EDU is similar to a clause. Generally, we define EDUs to be propositions derived from tensed clauses that are not verb arguments (such as that complements of verbs of belief). Annotators first identify the start and end of tensed clauses, omitting discourse connectives from the EDU spans, which can be discontinuous. Annotators then provide a paraphrase of the EDU span as an independent simple sentence. EDU annotation is illustrated in the following example:
 <br /><br />
 **Sample sentence**: SEAView is a useful tool which was made at Penn State.<br />
-**Segmentation**: \[SEAView is a useful tool\] and \[which was made at Penn State\].<br />
+**Segmentation**: \[SEAView is a useful tool\] which \[was made at Penn State\].<br />
 **Segmented text**:
 1. SEAView is a useful tool
-2. which was made at Penn State
-**EDUs**
+2. was made at Penn State<br />
+
+**EDUs**:
 1. SEAView is a useful tool
 2. SEAView was made at Penn State
 
-Beginning with the sample sentence, first the annotator must identify the start and end of the tensed clauses, omitting discourse connectives (such as the word "and"), yielding the segmentation shown directly below it. That segmentation is split into the two texts shown in the segmented text section. However, the second text is not an independent simple sentence. It needs a subject to be made into an EDU. The paraphrased EDU is shown in the final section above. The sentence has been made into two independent simple sentences, each of which is an EDU. EDUs can be highlighted and dragged from the argument text according to the instructions in "SEAView Components" into the center panel.
+Beginning with the sample sentence, first the annotator must identify the start and end of the tensed clauses, omitting discourse connectives (such as the word "which"), yielding the segmentation shown directly below it. That segmentation is split into the two texts shown in the segmented text section. However, the second text is not an independent simple sentence. It needs a subject to be made into an EDU. The paraphrased EDU is shown in the final section above. The sentence has been made into two independent simple sentences, each of which is an EDU. EDUs can be highlighted and dragged from the argument text according to the instructions in "SEAView Components" into the center panel.
 
 ### Align EDUs with any SCUs that share the same meaning
 
