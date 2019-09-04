@@ -23,14 +23,14 @@ The annotation process has four main steps for annotating a set of wise crowd an
 | 4       | SEAView | Peer EDUs       | Peer SCUs       | \*.pan          | \*.sep (SEA peer annotation) |
 
 ### Workflow Explanation
-1. See [DUCView](https://github.com/psunlpgroup/DucView-1.5).
-2. See [DUCView](https://github.com/psunlpgroup/DucView-1.5).
+1. See the [DUCView README](https://github.com/psunlpgroup/DucView-1.5).
+2. See [DUCView README](https://github.com/psunlpgroup/DucView-1.5).
 3. Wise crowd EDUs are annotated from a set of wise crowd essays and aligned with wise crowd SCUs from the pyramid created in step 1. The final output is a \*.sea file, or SEA (SCU-EDU alignment) annotation. This file includes a list of EDUs, a list of SCUs matched with the EDUs, and an alignment table. <br />
 4. Analogous to step 3 but for peer annotation. Peer EDUs are annotated from a single peer essay and aligned with peer SCUs from the peer annotation created in step 2. The final output is a \*.sep file, or SEA peer annotation. This file includes the same components as the \*.sea file but for the peer essays. <br>
 
 ## UI
 
-The figure "SEAView: Workspace Diagram" below shows the workspace in SEAView for a completed \*.sep file (the output of step 4). A completed \*.sep file would have an equivalent appearance in the tool but would have more content in the left panel. The components in red are described in more detail in the section "SEAView Components."
+The figure "SEAView Diagram" below shows the workspace in SEAView for a completed \*.sep file (the output of step 4). A completed \*.sep file would have an equivalent appearance in the tool but would have more content in the left panel. The components in red are described in more detail in the section "SEAView Components."
 
 ### SEAView Diagram
 ![SEAViewDiagram](Images/SEAViewDiagram.png?raw=true "SEAViewDiagram")
