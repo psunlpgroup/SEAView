@@ -3,6 +3,7 @@
 SEAView is a tool for annotating content in two-part essays, which contain a summary and an argument. This tool is used to annotate elementary discourse units (EDUs) from the argument section, and align them with semantically similar summary content units (SCUs) from the summary section. 
 
 Please cite this paper if you use the tool:
+
 Gao, Yanjun, et al. "Rubric Reliability and Annotation of Content and Argument in Source-Based Argument Essays." Proceedings of the Fourteenth Workshop on Innovative Use of NLP for Building Educational Applications. 2019.[Link](https://www.aclweb.org/anthology/W19-44#page=523)
 
 
