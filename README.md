@@ -6,6 +6,8 @@ Please cite this paper if you use the tool:
 
 Gao, Yanjun, et al. "Rubric Reliability and Annotation of Content and Argument in Source-Based Argument Essays." Proceedings of the Fourteenth Workshop on Innovative Use of NLP for Building Educational Applications. 2019.[Link](https://www.aclweb.org/anthology/W19-44#page=523)
 
+## Interface example
+![SEAView](img/seaview.png)
 
 ## Requirements
 Java 8 or higher.
