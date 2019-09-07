@@ -5,6 +5,14 @@ Please cite this paper if you use the tool:
 
 Gao, Yanjun, et al. "Rubric Reliability and Annotation of Content and Argument in Source-Based Argument Essays." Proceedings of the Fourteenth Workshop on Innovative Use of NLP for Building Educational Applications. 2019. [Link](https://www.aclweb.org/anthology/W19-44#page=523)
 
+### Table of Contents
+**[Requirements](#requirements)**<br>
+**[Features](#features)**<br>
+**[Workflow](#workflow)**<br>
+**[Interface](#interface)**<br>
+**[Annotation Guidelines](#annotation-guidelines)**<br>
+**[Class Documentation](#class-documentation)**<br> 
+
 ## Requirements
 Java 8 or higher.
 
@@ -61,7 +69,7 @@ The figure below shows the workspace in SEAView for a completed \*.sep file (the
 - **Set DND mode**: choose whether left click or right click is used to drag highlighted text from the left pane into the table as an EDU
 - **Set RegEx**: there are two regular expressions to set. **Document Header RegEx**: Divides essays from each other. **Summary Divider RegEx**: Divides the summary from the argument in a single essay. **These must be set prior to annotation.**
 
-## Annotation guidelines
+## Annotation Guidelines
 
 To perform either step 3 or 4 in the workflow described above, there are two main steps:
 1. Identification of all the EDUs in the argument text
@@ -86,7 +94,7 @@ Beginning with the sample sentence, first the annotator must identify the start 
 
 Once all of the EDUs in the argument have been annotated, the EDUs in the table must be aligned with SCUs (found in the pyramid on the right panel). SCUs and EDUs are aligned based on similar meaning. Many EDUs will not have a similar SCU in the pyramid and therefore will not be aligned. In the diagram above, note that most EDUs were not matched with an SCU. SCUs are dragged into the center panel according to the instructions in "SEAView Components."
 
-## Class documentation
+## Class Documentation
 This section contains an overview of the most important classes in the project's Java source code and their functions. <br />
 
 #### SEAView
