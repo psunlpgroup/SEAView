@@ -33,7 +33,7 @@ The annotation process has four main steps for annotating a set of wise crowd an
 The figure "SEAView Diagram" below shows the workspace in SEAView for a completed \*.sep file (the output of step 4). A completed \*.sep file would have an equivalent appearance in the tool but would have more content in the left panel. The components in red are described in more detail in the section "SEAView Components."
 
 ### SEAView Diagram
-![SEAViewDiagram](Images/SEAViewDiagram.png?raw=true "SEAViewDiagram")
+![SEAViewDiagram](Images/seaview.png?raw=true "seaview")
 
 ### SEAView Components
 
