@@ -1,6 +1,9 @@
 # SEAView
+SEAView (*"**S**CU-**E**DU-**A**lignment"*) is a tool for annotating content in two-part essays, which contain a summary and an argument. This tool is used to annotate elementary discourse units (EDUs) from the argument section, and align them with semantically similar summary content units (SCUs) from the summary section. 
 
-SEAView is a tool for annotating content in two-part essays, which contain a summary and an argument. This tool is used to annotate elementary discourse units (EDUs) from the argument section, and align them with semantically similar summary content units (SCUs) from the summary section. 
+Please cite this paper if you use the tool:
+
+Gao, Yanjun, et al. "Rubric Reliability and Annotation of Content and Argument in Source-Based Argument Essays." Proceedings of the Fourteenth Workshop on Innovative Use of NLP for Building Educational Applications. 2019. [Link](https://www.aclweb.org/anthology/W19-44#page=523)
 
 ## Requirements
 Java 8 or higher.
@@ -28,11 +31,10 @@ The annotation process has four main steps for annotating a set of wise crowd an
 3. Wise crowd EDUs are annotated from a set of wise crowd essays and aligned with wise crowd SCUs from the pyramid created in step 1. The final output is a \*.sea file, or SEA (SCU-EDU alignment) annotation. This file includes a list of EDUs, a list of SCUs matched with the EDUs, and an alignment table. <br />
 4. Analogous to step 3 but for peer annotation. Peer EDUs are annotated from a single peer essay and aligned with peer SCUs from the peer annotation created in step 2. The final output is a \*.sep file, or SEA peer annotation. This file includes the same components as the \*.sea file but for the peer essays. <br>
 
-## UI
+## Interface
 
-The figure "SEAView Diagram" below shows the workspace in SEAView for a completed \*.sep file (the output of step 4). A completed \*.sep file would have an equivalent appearance in the tool but would have more content in the left panel. The components in red are described in more detail in the section "SEAView Components."
+The figure below shows the workspace in SEAView for a completed \*.sep file (the output of step 4). A completed \*.sep file would have an equivalent appearance in the tool but would have more content in the left panel. The components in red are described in more detail in the section "SEAView Components."
 
-### SEAView Diagram
 ![SEAViewDiagram](Images/seaview.png?raw=true "seaview")
 
 ### SEAView Components
