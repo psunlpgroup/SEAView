@@ -5,6 +5,8 @@ Please cite this paper if you use the tool:
 
 Gao, Yanjun, et al. "[Rubric Reliability and Annotation of Content and Argument in Source-Based Argument Essays](https://www.aclweb.org/anthology/W19-4452/)." Proceedings of the Fourteenth Workshop on Innovative Use of NLP for Building Educational Applications. 2019.
 
+[BibTeX Citation](https://www.aclweb.org/anthology/papers/W/W19/W19-4452.bib)
+
 ### Table of Contents
 **[Requirements](#requirements)**<br>
 **[Features](#features)**<br>
