@@ -13,7 +13,7 @@ Gao, Yanjun, et al. "[Rubric Reliability and Annotation of Content and Argument 
 **[Workflow](#workflow)**<br>
 **[Interface](#interface)**<br>
 **[Annotation Guidelines](#annotation-guidelines)**<br>
-**[Class Documentation](#class-documentation)**<br> 
+**[Class Documentation](#class-documentation)**<br
 
 ## Requirements
 Java 8 or higher.
