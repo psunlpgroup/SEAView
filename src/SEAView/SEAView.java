@@ -22,6 +22,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -718,7 +719,7 @@ public class SEAView extends JFrame implements ActionListener, ErrorHandler {
     private boolean writeout(File file, boolean writePeer) {
         boolean success = true;
         try {
-            PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(file)), true);
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
 
             writer.println("<?xml version=\"1.0\"?>");
             writer.println("<!DOCTYPE " + (writePeer ? "SEP" : "SEA") + " [");

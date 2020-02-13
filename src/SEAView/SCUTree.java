@@ -17,8 +17,8 @@ import javax.swing.tree.TreePath;
 public class SCUTree extends JTree implements TreeSelectionListener, Comparator, Autoscroll, TreeExpansionListener {
     private DefaultTreeModel treeModel;
     private SEAView seaView;
-    private ScuEduTextPane textPane = null;
-    private ScuEduTextPane pyramidReferenceTextPane = null;
+    private SEAViewTextPane textPane = null;
+    private SEAViewTextPane pyramidReferenceTextPane = null;
     private boolean noScrollOnNextNodeSelection = false;
     private Vector highlightedNodes = new Vector();
     private DataFlavor treeNodeFlavor = null;
@@ -71,11 +71,11 @@ public class SCUTree extends JTree implements TreeSelectionListener, Comparator,
         scrollRowToVisible(0);
     }
 
-    public void setSCUTextPane(ScuEduTextPane textPane) {
+    public void setSCUTextPane(SEAViewTextPane textPane) {
         this.textPane = textPane;
     }
 
-    public void setPyramidReferenceTextPane(ScuEduTextPane pyramidReferenceTextPane) {
+    public void setPyramidReferenceTextPane(SEAViewTextPane pyramidReferenceTextPane) {
         this.pyramidReferenceTextPane = pyramidReferenceTextPane;
     }
 

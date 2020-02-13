@@ -6,10 +6,8 @@ import java.awt.datatransfer.Transferable;
 import java.awt.dnd.*;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Vector;
 import javax.swing.*;
 import javax.swing.event.CaretEvent;
@@ -221,7 +219,8 @@ public class SEAViewTextPane extends JTextPane implements CaretListener, ActionL
     }
 
     public void loadFile(File file) throws IOException {
-        BufferedReader reader = new BufferedReader(new FileReader(file));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(file), StandardCharsets.UTF_8));
         StringBuffer buffer = new StringBuffer();
         String line;
         while ((line = reader.readLine()) != null) {
